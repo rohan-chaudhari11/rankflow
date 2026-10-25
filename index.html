@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RankFlow – Real-Time Leaderboard and Ranking Engine (DSA Project)</title>
+  <meta name="description" content="A Data Structures and Algorithms (DSA) Real-Time Leaderboard and Ranking Engine comparing Heaps, Balanced Trees (Order Statistic Trees), and Hash Maps under frequent score updates." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <h1 class="brand-title">RankFlow</h1>
+        <p class="brand-subtitle">Real-Time Leaderboard &amp; Ranking Engine &bull; DSA Heaps &amp; Balanced Trees Project</p>
+      </div>
+      <div class="header-controls">
+        <div class="status-indicator">
+          <span class="status-label">Status:</span>
+          <span id="simStatusBadge" class="badge badge-stopped">Stopped</span>
+          <span class="timer-display" id="timerDisplay">Updates: 0</span>
+        </div>
+        <div class="btn-group">
+          <button id="btnStart" class="btn btn-primary">Start Live Stream</button>
+          <button id="btnPause" class="btn btn-secondary" disabled>Pause</button>
+          <button id="btnReset" class="btn btn-outline">Reset</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== NOTIFICATION / ALERT BAR ==================== -->
+  <div class="container">
+    <div id="feedbackAlert" class="alert hidden" role="alert" aria-live="polite"></div>
+  </div>
+
+  <main class="container main-layout">
+
+    <!-- ==================== TOP ROW: CONTROLS & MANUAL QUERIES ==================== -->
+    <section class="grid-2col">
+
+      <!-- Section 1: Engine & Stream Settings -->
+      <div class="card">
+        <h2 class="card-title">Leaderboard Engine &amp; Stream Settings</h2>
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label for="selectEngine">Active Data Structure Engine</label>
+            <select id="selectEngine">
+              <option value="avl">Order Statistic AVL Tree + Hash Map [O(log N) All Ops - Recommended]</option>
+              <option value="heap">Indexed Max-Heap + Hash Map [Fast Top-1, O(N) Rank Query]</option>
+              <option value="naive">Baseline Hash Map + Array Sort [O(1) Update, O(N log N) Top-K]</option>
+            </select>
+            <small class="form-hint">Switch engines dynamically to test latency and behavior.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="selectSpeed">Live Update Frequency</label>
+            <select id="selectSpeed">
+              <option value="slow">Gentle (1 update / sec)</option>
+              <option value="medium" selected>Standard (6 updates / sec)</option>
+              <option value="fast">High-Frequency (40 updates / sec)</option>
+              <option value="hyper">Stress-Test (150+ updates / sec)</option>
+            </select>
+            <small class="form-hint">Simulate real-time match scores</small>
+          </div>
+
+          <div class="form-group">
+            <label for="selectUserCount">Player Population (N)</label>
+            <select id="selectUserCount">
+              <option value="50">50 Players</option>
+              <option value="100" selected>100 Players</option>
+              <option value="500">500 Players</option>
+              <option value="1000">1,000 Players</option>
+              <option value="2500">2,500 Players</option>
+            </select>
+            <small class="form-hint">Total registered players</small>
+          </div>
+
+          <div class="form-group full-width">
+            <label for="selectTopK">Top-K Retrieval Limit (K)</label>
+            <select id="selectTopK">
+              <option value="5">Top 5 Players</option>
+              <option value="10" selected>Top 10 Players</option>
+              <option value="25">Top 25 Players</option>
+              <option value="50">Top 50 Players</option>
+              <option value="100">Top 100 Players</option>
+            </select>
+            <small class="form-hint">Dynamically query highest scoring players</small>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="auto-generate-section">
+          <label class="section-sublabel">Batch Score Ingestion</label>
+          <div class="btn-cluster">
+            <button type="button" id="btnInject1" class="btn btn-outline btn-sm">+ 1 Update</button>
+            <button type="button" id="btnInject10" class="btn btn-outline btn-sm">+ Burst (10 Updates)</button>
+            <button type="button" id="btnInject50" class="btn btn-outline btn-sm">+ Wave (50 Updates)</button>
+          </div>
+          <small class="form-hint">Simulate sudden spikes in player scores to stress tree rebalancing.</small>
+        </div>
+      </div>
+
+      <!-- Section 2: Manual Operations & Ranking Queries -->
+      <div class="card">
+        <h2 class="card-title">Score Updates &amp; Ranking Queries</h2>
+        
+        <!-- Tab: Manual Score Update -->
+        <form id="formUpdateScore" class="form-vertical">
+          <label class="section-sublabel">1. Update / Set Player Score</label>
+          <div class="form-row-flex">
+            <input type="text" id="inputUserId" placeholder="Player ID (e.g. Alex_101)" required />
+            <select id="selectUpdateType" style="max-width: 130px;">
+              <option value="add">+ Add Delta</option>
+              <option value="set">= Set Score</option>
+            </select>
+            <input type="number" id="inputScoreDelta" placeholder="Points" value="250" required style="max-width: 110px;" />
+            <button type="submit" class="btn btn-primary btn-sm">Update</button>
+          </div>
+        </form>
+
+        <hr class="divider" />
+
+        <!-- Tab: Exact Rank Query -->
+        <form id="formQueryRank" class="form-vertical">
+          <label class="section-sublabel">2. Exact Rank Query <code>getRank(userId)</code></label>
+          <div class="form-row-flex">
+            <input type="text" id="inputQueryUser" placeholder="Enter Player ID (e.g. Alex_101)" required />
+            <button type="submit" class="btn btn-secondary btn-sm">Find Rank</button>
+          </div>
+          <div id="rankResultCard" class="query-card-placeholder">
+            <span class="text-muted">Enter a Player ID above to inspect exact 1-based rank, score percentile, and surrounding leaderboard neighbors in <code>O(log N)</code>.</span>
+          </div>
+        </form>
+
+        <hr class="divider" />
+
+        <!-- Tab: Query By Rank -->
+        <form id="formQueryByRank" class="form-vertical">
+          <label class="section-sublabel">3. Select by Rank <code>getByRank(k)</code></label>
+          <div class="form-row-flex">
+            <input type="number" id="inputQueryRankNum" placeholder="Rank (e.g. 1, 10, 50)" min="1" value="1" required />
+            <button type="submit" class="btn btn-outline btn-sm">Select Player</button>
+          </div>
+          <div id="byRankResultCard" class="query-card-placeholder">
+            <span class="text-muted">Query who holds any arbitrary rank via Order Statistic Select in <code>O(log N)</code>.</span>
+          </div>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- ==================== USEFUL PERFORMANCE STATISTICS ==================== -->
+    <section class="card">
+      <h2 class="card-title">Real-Time Performance &amp; Complexity Telemetry</h2>
+      <p class="section-subtitle">Live system metrics measuring tree depth, throughput, and asymptotic complexity.</p>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">Total Registered Users (N)</span>
+          <span class="stat-value" id="statTotalUsers">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Score Updates Processed</span>
+          <span class="stat-value" id="statTotalUpdates">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Current #1 Leader</span>
+          <span class="stat-value" id="statLeader">None</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Average Player Score</span>
+          <span class="stat-value" id="statAvgScore">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Tree Height vs Theoretical</span>
+          <span class="stat-value" id="statTreeDepth">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Active Complexity Guarantees</span>
+          <span class="stat-value" id="statComplexity"><code>O(log N)</code></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TOP-K LEADERBOARD TABLE ==================== -->
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2 class="card-title">
+            Live Top-K Leaderboard
+            <span id="leaderboardCountBadge" class="counter-badge">Top 10</span>
+          </h2>
+          <span class="text-muted" id="activeEngineNotice">Active Engine: Order Statistic AVL Tree</span>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table" id="leaderboardTable">
+          <thead>
+            <tr>
+              <th style="width: 100px;">Rank</th>
+              <th>Player Name / ID</th>
+              <th>Score &amp; Relative Standing</th>
+              <th style="width: 90px;">Shift</th>
+              <th style="width: 140px;">Last Updated</th>
+              <th style="width: 110px;">Quick Action</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardTableBody">
+            <tr class="empty-row">
+              <td colspan="6">Loading leaderboard...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== STRATEGY & DATA STRUCTURE BENCHMARK ==================== -->
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2 class="card-title">Empirical Benchmark: Heaps vs Balanced Trees vs Hash Maps</h2>
+          <p class="section-subtitle">
+            Side-by-side performance evaluation under identical batches of <strong>10,000 repeated score updates</strong> and point queries.
+          </p>
+        </div>
+        <button id="btnRunBenchmark" class="btn btn-primary btn-sm">Run Comparison Benchmark</button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table compare-table" id="benchmarkTable">
+          <thead>
+            <tr>
+              <th>Data Structure Architecture</th>
+              <th>10K Updates (ms)</th>
+              <th>Avg Latency / Upd</th>
+              <th>Top-10 Retrieval (ms)</th>
+              <th>500 Point Rank Queries (ms)</th>
+              <th>Update Complexity</th>
+              <th>Rank Query Complexity</th>
+            </tr>
+          </thead>
+          <tbody id="benchmarkTableBody">
+            <tr>
+              <td colspan="7" class="text-center text-muted">
+                Click <strong>"Run Comparison Benchmark"</strong> to execute 10,000 repeated updates across all 3 data structures.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="benchmark-insight">
+        <p><strong>Key DSA Takeaway:</strong></p>
+        <ul class="dsa-points">
+          <li><strong>Binary Heaps</strong> excel at $O(1)$ maximum inspection and $O(\log N)$ updates, but because a heap is only a <em>partial order</em>, finding the exact rank of an arbitrary user requires an exhaustive $O(N)$ traversal.</li>
+          <li><strong>Augmented Balanced Search Trees (Order Statistic Trees)</strong> maintain subtree sizes in each node. This enables both $O(\log N)$ updates and $O(\log N)$ rank queries, eliminating the $O(N)$ rank query bottleneck completely.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ==================== RECENT UPDATE LOG & AUDIT HISTORY ==================== -->
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2 class="card-title">Live Update Stream &amp; Audit Trail</h2>
+          <p class="section-subtitle">Real-time log of score changes, rank climbs, and drops.</p>
+        </div>
+        <div class="btn-group">
+          <button id="btnExportCSV" class="btn btn-secondary btn-sm">Export Leaderboard (CSV)</button>
+          <button id="btnClearLog" class="btn btn-outline btn-sm">Clear Feed</button>
+        </div>
+      </div>
+
+      <div id="activityLogContainer" class="activity-log-feed">
+        <!-- Generated dynamically via script.js -->
+      </div>
+    </section>
+
+    <!-- ==================== HOW IT WORKS & DSA CONCEPTS ==================== -->
+    <section class="card">
+      <h2 class="card-title">Data Structures &amp; Algorithms (DSA) Concepts Explained</h2>
+      <div class="grid-2col" style="margin-top: 14px;">
+        <div class="info-cell">
+          <h4>1. Why Heaps Alone Are Insufficient for Leaderboards</h4>
+          <p>A Binary Max-Heap only guarantees that <code>parent &gt;= children</code>. It does not enforce order between siblings. Consequently, retrieving the exact rank of a user or finding who is at rank #50 requires scanning or sorting $O(N)$ elements, which is unacceptable under repeated updates.</p>
+        </div>
+        <div class="info-cell">
+          <h4>2. Subtree Size Augmentation in Balanced Trees</h4>
+          <p>By augmenting each node with <code>subtreeSize = 1 + size(left) + size(right)</code> and maintaining it during AVL rotations in $O(1)$ time, an AVL tree transforms into an <strong>Order Statistic Tree</strong>. We can compute any player's rank in strictly $O(\log N)$ steps.</p>
+        </div>
+        <div class="info-cell">
+          <h4>3. O(1) Key Lookup via Hash Map Pairing</h4>
+          <p>Pure tree search for user IDs by name would require $O(N)$ or secondary keys. By pairing the tree with a <code>Map&lt;userId, NodePointer&gt;</code>, we locate the user's tree node in $O(1)$, extract them in $O(\log N)$, adjust their score, and re-insert in $O(\log N)$.</p>
+        </div>
+        <div class="info-cell">
+          <h4>4. Deterministic Tie-Breaking Logic</h4>
+          <p>When two players share identical scores, ties are deterministically resolved by comparing their <code>lastUpdated</code> timestamp (earlier score achievements rank higher) followed by their unique <code>userId</code> string, preserving strict total order.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <div class="container footer-content">
+      <p>RankFlow – Real-Time Leaderboard and Ranking Engine &bull; Data Structures &amp; Algorithms (DSA) Project</p>
+      <p>Heaps, Balanced Search Trees, Order Statistics, Subtree Augmentation, and Empirical Benchmark Suite.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
