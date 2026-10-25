@@ -1,3 +1,7 @@
 {
-  "cleanUrls": true
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/((?!style\\.css|script\\.js|README\\.md).*)", "destination": "/index.html" }
+  ]
 }

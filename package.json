@@ -1,0 +1,9 @@
+{
+  "name": "rankflow-leaderboard",
+  "version": "1.0.0",
+  "description": "RankFlow – Real-Time Leaderboard and Ranking Engine (DSA Project)",
+  "private": true,
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
